@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공룡 게임</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-state="idle">
+  <div id="game">
+    <div id="score-area">
+      <span id="hi-score">HI 00000</span>
+      <span id="score">00000</span>
+    </div>
+
+    <div id="sky">
+      <div class="cloud" style="left:10%;top:30px"></div>
+      <div class="cloud" style="left:40%;top:50px"></div>
+      <div class="cloud" style="left:70%;top:20px"></div>
+      <div class="star" style="left:8%;top:40px"></div>
+      <div class="star" style="left:20%;top:25px"></div>
+      <div class="star" style="left:35%;top:55px"></div>
+      <div class="star" style="left:50%;top:35px"></div>
+      <div class="star" style="left:63%;top:20px"></div>
+      <div class="star" style="left:75%;top:50px"></div>
+      <div class="star" style="left:85%;top:30px"></div>
+      <div class="star" style="left:93%;top:45px"></div>
+    </div>
+
+    <div id="dino"></div>
+
+    <div id="ground">
+      <div class="ground-strip" id="ground-strip-a"></div>
+      <div class="ground-strip" id="ground-strip-b"></div>
+    </div>
+
+    <div id="obstacles"></div>
+
+    <div class="overlay msg-start">
+      <p>Space / ↑ 키로 시작</p>
+    </div>
+    <div class="overlay msg-gameover">
+      <p class="gameover-text">GAME OVER</p>
+      <p class="restart-text">Space / ↑ 키로 재시작</p>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

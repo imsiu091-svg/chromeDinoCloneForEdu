@@ -1,0 +1,640 @@
+/* ===== 기본 설정 ===== */
+:root {
+  --px: 4px;
+  --dino-color: #535353;
+  --cactus-color: #535353;
+  --ptero-color: #535353;
+  --ground-color: #535353;
+  --bg-color: #f7f7f7;
+  --text-color: #535353;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  transition: background 0.3s;
+}
+
+/* ===== 낮/밤 ===== */
+body.night {
+  --dino-color: #e0e0e0;
+  --cactus-color: #7ec87e;
+  --ptero-color: #e0e0e0;
+  --ground-color: #888888;
+  --bg-color: #1a1a2e;
+  --text-color: #e0e0e0;
+  background: var(--bg-color);
+}
+
+/* ===== 게임 컨테이너 ===== */
+#game {
+  position: relative;
+  width: 800px;
+  height: 300px;
+  overflow: hidden;
+  border-bottom: 2px solid var(--ground-color);
+}
+
+/* ===== 점수 ===== */
+#score-area {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-color);
+  letter-spacing: 2px;
+  z-index: 10;
+}
+
+/* ===== 하늘 ===== */
+#sky {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* 구름 */
+.cloud {
+  position: absolute;
+  width: 72px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 12px;
+  opacity: 0.7;
+  transition: background 0.3s;
+}
+body.night .cloud { background: #555; }
+
+/* 별 */
+.star {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+body.night .star { opacity: 1; }
+
+/* ===== 바닥 ===== */
+#ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  overflow: hidden;
+}
+
+.ground-strip {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1600px;
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--ground-color) 0px,
+    var(--ground-color) 6px,
+    transparent 6px,
+    transparent 14px
+  );
+}
+
+/* ===== 장애물 컨테이너 ===== */
+#obstacles {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ===== 오버레이 ===== */
+.overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--text-color);
+  font-weight: bold;
+  letter-spacing: 2px;
+  display: none;
+  z-index: 20;
+}
+
+[data-state="idle"] .msg-start { display: block; }
+[data-state="gameover"] .msg-gameover { display: block; }
+
+.gameover-text { font-size: 24px; margin-bottom: 12px; }
+.restart-text { font-size: 14px; }
+
+/* ===== 공룡 스프라이트 ===== */
+/*
+  픽셀 그리드 (12×14, --px=4px 기준 = 48×56px)
+  좌상단 기준 (col, row) → box-shadow: calc(col*var(--px)) calc(row*var(--px)) 0 0 color
+  단, 원소 자체는 col=0,row=0 위치.
+
+  공룡 픽셀맵:
+  Row 0:          ████████
+  Row 1:       ███████████  (눈: col9=배경)
+  Row 2:       ████████
+  Row 3:    █████████
+  Row 4:  ████████████████
+  Row 5:  ██████████████
+  Row 6:  █████████████
+  Row 7:    ████████████
+  Row 8:      ██████████
+  Row 9:      ████  ████   (다리 공간)
+  Row10:      ████  ████
+  Row11:      ████  ████
+  Row12:      ███   ████
+  Row13:      ██
+*/
+
+#dino {
+  position: absolute;
+  left: 80px;
+  bottom: 20px;
+  width: var(--px);
+  height: var(--px);
+  background: var(--dino-color);
+}
+
+/* 공룡 정지/달리기 공통 body */
+#dino::before {
+  content: '';
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--dino-color);
+  /* 공룡 전체 body 픽셀 (다리 제외) */
+  box-shadow:
+    /* row 0 */
+    calc(4*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-13*var(--px)) 0 0 var(--dino-color),
+    /* row 1 */
+    calc(3*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    /* eye hole at 9 */
+    calc(10*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-12*var(--px)) 0 0 var(--dino-color),
+    /* row 2 */
+    calc(3*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-11*var(--px)) 0 0 var(--dino-color),
+    /* row 3 */
+    calc(2*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-10*var(--px)) 0 0 var(--dino-color),
+    /* row 4 */
+    calc(0*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(1*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(2*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-9*var(--px)) 0 0 var(--dino-color),
+    /* row 5 */
+    calc(0*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(1*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(2*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-8*var(--px)) 0 0 var(--dino-color),
+    /* row 6 */
+    calc(0*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(1*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(2*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    /* row 7 */
+    calc(2*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    /* row 8 */
+    calc(4*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color);
+}
+
+/* 공룡 다리 - 기본(달리기 프레임 A) */
+#dino::after {
+  content: '';
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--dino-color);
+  box-shadow:
+    /* 왼쪽 다리 */
+    calc(4*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    /* 오른쪽 다리 앞으로 */
+    calc(8*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color);
+}
+
+/* 달리기 프레임 B (다리 교체) */
+#dino.run-b::after {
+  box-shadow:
+    /* 왼쪽 다리 앞으로 */
+    calc(4*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    /* 오른쪽 다리 뒤로 */
+    calc(8*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color);
+}
+
+/* 웅크리기 모드 - 전체 body 재정의 */
+#dino.crouching::before {
+  /* 납작한 몸체 (16×8 픽셀) */
+  box-shadow:
+    /* row 0 */
+    calc(4*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(12*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(13*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(14*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    calc(15*var(--px)) calc(-7*var(--px)) 0 0 var(--dino-color),
+    /* row 1 */
+    calc(3*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    /* eye */
+    calc(10*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(12*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(13*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    calc(14*var(--px)) calc(-6*var(--px)) 0 0 var(--dino-color),
+    /* row 2 */
+    calc(0*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(1*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(2*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(12*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    calc(13*var(--px)) calc(-5*var(--px)) 0 0 var(--dino-color),
+    /* row 3 */
+    calc(0*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(1*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(2*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(6*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(7*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(11*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(12*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color),
+    calc(13*var(--px)) calc(-4*var(--px)) 0 0 var(--dino-color);
+}
+
+#dino.crouching::after {
+  box-shadow:
+    /* 납작한 다리 */
+    calc(4*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(3*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(4*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(10*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color);
+}
+
+#dino.crouching.run-b::after {
+  box-shadow:
+    calc(4*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(5*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-3*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-2*var(--px)) 0 0 var(--dino-color),
+    calc(8*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color),
+    calc(9*var(--px)) calc(-1*var(--px)) 0 0 var(--dino-color);
+}
+
+/* ===== 선인장 스프라이트 ===== */
+.cactus {
+  position: absolute;
+  bottom: 0;
+  width: var(--px);
+  height: var(--px);
+  background: var(--cactus-color);
+}
+
+/* 작은 선인장 (6×12) */
+.cactus--sm::before {
+  content: '';
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--cactus-color);
+  box-shadow:
+    /* 중심 기둥 */
+    0 calc(-1*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-2*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-3*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-4*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-5*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-6*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-7*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-8*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-9*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-10*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-11*var(--px)) 0 0 var(--cactus-color),
+    /* 왼쪽 팔 */
+    calc(-1*var(--px)) calc(-5*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-5*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-6*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-8*var(--px)) 0 0 var(--cactus-color),
+    /* 오른쪽 팔 */
+    calc(1*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(2*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(2*var(--px)) calc(-8*var(--px)) 0 0 var(--cactus-color),
+    calc(2*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(2*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color);
+}
+
+/* 중간 선인장 (9×16) */
+.cactus--md::before {
+  content: '';
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--cactus-color);
+  box-shadow:
+    /* 중심 기둥 */
+    0 calc(-1*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-2*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-3*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-4*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-5*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-6*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-7*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-8*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-9*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-10*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-11*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-12*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-13*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-14*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-15*var(--px)) 0 0 var(--cactus-color),
+    /* 왼쪽 팔 (길고 낮은) */
+    calc(-1*var(--px)) calc(-4*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-4*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-4*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-5*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-6*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-8*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    /* 왼쪽 위 팔 */
+    calc(-1*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    /* 오른쪽 팔 */
+    calc(1*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(2*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(3*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(3*var(--px)) calc(-8*var(--px)) 0 0 var(--cactus-color),
+    calc(3*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(3*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color),
+    calc(3*var(--px)) calc(-11*var(--px)) 0 0 var(--cactus-color),
+    calc(3*var(--px)) calc(-12*var(--px)) 0 0 var(--cactus-color),
+    calc(1*var(--px)) calc(-12*var(--px)) 0 0 var(--cactus-color),
+    calc(2*var(--px)) calc(-12*var(--px)) 0 0 var(--cactus-color);
+}
+
+/* 큰 선인장 (두 개 붙어있는 형태) */
+.cactus--lg::before {
+  content: '';
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--cactus-color);
+  box-shadow:
+    /* 왼쪽 기둥 */
+    0 calc(-1*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-2*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-3*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-4*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-5*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-6*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-7*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-8*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-9*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-10*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-11*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-12*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-13*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-14*var(--px)) 0 0 var(--cactus-color),
+    0 calc(-15*var(--px)) 0 0 var(--cactus-color),
+    /* 왼쪽 팔 */
+    calc(-1*var(--px)) calc(-6*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-6*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-6*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-8*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(-3*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color),
+    calc(-1*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color),
+    calc(-2*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color),
+    /* 오른쪽 기둥 */
+    calc(4*var(--px)) 0 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-1*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-2*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-3*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-4*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-5*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-6*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-7*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-8*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-11*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-12*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-13*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-14*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-15*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-16*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-17*var(--px)) 0 0 var(--cactus-color),
+    calc(4*var(--px)) calc(-18*var(--px)) 0 0 var(--cactus-color),
+    /* 오른쪽 팔 */
+    calc(5*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(6*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(7*var(--px)) calc(-9*var(--px)) 0 0 var(--cactus-color),
+    calc(7*var(--px)) calc(-10*var(--px)) 0 0 var(--cactus-color),
+    calc(7*var(--px)) calc(-11*var(--px)) 0 0 var(--cactus-color),
+    calc(7*var(--px)) calc(-12*var(--px)) 0 0 var(--cactus-color),
+    calc(7*var(--px)) calc(-13*var(--px)) 0 0 var(--cactus-color),
+    calc(5*var(--px)) calc(-13*var(--px)) 0 0 var(--cactus-color),
+    calc(6*var(--px)) calc(-13*var(--px)) 0 0 var(--cactus-color);
+}
+
+/* ===== 익룡 스프라이트 ===== */
+.ptero {
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--ptero-color);
+}
+
+.ptero::before {
+  content: '';
+  position: absolute;
+  width: var(--px);
+  height: var(--px);
+  background: var(--ptero-color);
+  /* 날개 올린 상태 */
+  box-shadow:
+    /* 몸통 */
+    calc(1*var(--px)) 0 0 0 var(--ptero-color),
+    calc(2*var(--px)) 0 0 0 var(--ptero-color),
+    calc(3*var(--px)) 0 0 0 var(--ptero-color),
+    calc(4*var(--px)) 0 0 0 var(--ptero-color),
+    calc(5*var(--px)) 0 0 0 var(--ptero-color),
+    calc(6*var(--px)) 0 0 0 var(--ptero-color),
+    /* 머리/부리 */
+    calc(7*var(--px)) 0 0 0 var(--ptero-color),
+    calc(8*var(--px)) 0 0 0 var(--ptero-color),
+    calc(8*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    /* 날개 위 */
+    calc(0*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(1*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(3*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(4*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(5*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(6*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(-1*var(--px)) calc(-2*var(--px)) 0 0 var(--ptero-color),
+    calc(0*var(--px)) calc(-2*var(--px)) 0 0 var(--ptero-color),
+    calc(1*var(--px)) calc(-2*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(-2*var(--px)) 0 0 var(--ptero-color),
+    calc(-2*var(--px)) calc(-3*var(--px)) 0 0 var(--ptero-color),
+    calc(-1*var(--px)) calc(-3*var(--px)) 0 0 var(--ptero-color),
+    /* 아래 꼬리 */
+    calc(1*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(2*var(--px)) 0 0 var(--ptero-color),
+    calc(3*var(--px)) calc(2*var(--px)) 0 0 var(--ptero-color);
+}
+
+/* 날개 내린 상태 */
+.ptero.flap::before {
+  box-shadow:
+    /* 몸통 동일 */
+    calc(1*var(--px)) 0 0 0 var(--ptero-color),
+    calc(2*var(--px)) 0 0 0 var(--ptero-color),
+    calc(3*var(--px)) 0 0 0 var(--ptero-color),
+    calc(4*var(--px)) 0 0 0 var(--ptero-color),
+    calc(5*var(--px)) 0 0 0 var(--ptero-color),
+    calc(6*var(--px)) 0 0 0 var(--ptero-color),
+    calc(7*var(--px)) 0 0 0 var(--ptero-color),
+    calc(8*var(--px)) 0 0 0 var(--ptero-color),
+    calc(8*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    /* 날개 아래 */
+    calc(0*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(1*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(3*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(4*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(5*var(--px)) calc(1*var(--px)) 0 0 var(--ptero-color),
+    calc(-1*var(--px)) calc(2*var(--px)) 0 0 var(--ptero-color),
+    calc(0*var(--px)) calc(2*var(--px)) 0 0 var(--ptero-color),
+    calc(1*var(--px)) calc(2*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(2*var(--px)) 0 0 var(--ptero-color),
+    /* 꼬리 */
+    calc(1*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(-1*var(--px)) 0 0 var(--ptero-color),
+    calc(2*var(--px)) calc(-2*var(--px)) 0 0 var(--ptero-color),
+    calc(3*var(--px)) calc(-2*var(--px)) 0 0 var(--ptero-color);
+}
